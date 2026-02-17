@@ -253,13 +253,13 @@ ${preferencesText}
 
 OUTPUT FORMAT (JSON ONLY):
 Return a valid JSON array with exactly 3 meeting options. Each option must have:
-- "title": Brief descriptive title for the meeting
-- "date": Specific day based on the calendar data
+- "title": Short title (max 5 words)
+- "date": Day name from the calendar (e.g., "Monday", "Tuesday")
 - "time": Time range (e.g., "10:00 AM - 11:00 AM")
-- "duration": Duration in minutes
-- "reasoning": Why this slot is optimal based on the calendar data
+- "duration": Duration in minutes (number)
+- "reasoning": One sentence, max 15 words, explaining why this slot works
 
-Return ONLY the JSON array, no markdown formatting, no code fences, no explanations.`;
+Keep the entire response under 500 characters. Return ONLY the JSON array. No markdown, no code fences, no extra text.`;
 
     const response = await fetch(url, {
         method: 'POST',
@@ -274,7 +274,7 @@ Return ONLY the JSON array, no markdown formatting, no code fences, no explanati
             }],
             generationConfig: {
                 temperature: 0.7,
-                maxOutputTokens: 1024
+                maxOutputTokens: 2048
             }
         })
     });
@@ -300,8 +300,38 @@ Return ONLY the JSON array, no markdown formatting, no code fences, no explanati
     } else if (cleanText.startsWith('```')) {
         cleanText = cleanText.replace(/```\n?/g, '');
     }
+    cleanText = cleanText.trim();
 
-    return cleanText.trim();
+    // Try to fix truncated JSON (unterminated strings)
+    try {
+        JSON.parse(cleanText);
+    } catch (e) {
+        console.warn("Gemini JSON needs repair, attempting fix...");
+        // Try closing any unclosed strings, objects, and arrays
+        let fixed = cleanText;
+        // Count brackets to see what's missing
+        const openBraces = (fixed.match(/{/g) || []).length;
+        const closeBraces = (fixed.match(/}/g) || []).length;
+        const openBrackets = (fixed.match(/\[/g) || []).length;
+        const closeBrackets = (fixed.match(/\]/g) || []).length;
+
+        // If truncated mid-string, close the string and object
+        if (fixed.endsWith('"') || /[a-zA-Z0-9.,!? ]$/.test(fixed)) {
+            if (!fixed.endsWith('"')) fixed += '"';
+            for (let i = 0; i < openBraces - closeBraces; i++) fixed += '}';
+            for (let i = 0; i < openBrackets - closeBrackets; i++) fixed += ']';
+        }
+
+        try {
+            JSON.parse(fixed);
+            cleanText = fixed;
+            console.log("✅ JSON repair successful");
+        } catch (e2) {
+            console.warn("JSON repair failed, returning raw text");
+        }
+    }
+
+    return cleanText;
 }
 
 /**
