@@ -149,10 +149,19 @@ async function scheduleMeeting() {
 
 /**
  * Calls the ScaleDown API directly from the browser (no backend needed).
- * This enables real compression on GitHub Pages!
+ * Then calls Gemini API directly for REAL schedule generation.
  */
 async function callScaleDownDirect(calendarText, preferencesText, apiKey) {
+    const geminiKey = document.getElementById('gemini-key-input').value;
+    const modelIndex = document.getElementById('gemini-model-select').value;
+    let selectedModel = modelIndex;
+    if (modelIndex === 'custom') {
+        selectedModel = document.getElementById('gemini-model-custom').value || 'gemini-2.0-flash';
+    }
+
     const rawSize = calendarText.length + preferencesText.length;
+
+    // --- Stage 1: ScaleDown Compression ---
     const t0 = performance.now();
 
     const response = await fetch("https://api.scaledown.xyz/compress/raw/", {
@@ -186,45 +195,143 @@ async function callScaleDownDirect(calendarText, preferencesText, apiKey) {
 
     const compressedSize = compressedText.length;
 
-    // Build a demo schedule (since we don't have Gemini on the client side)
-    const schedule = [
-        {
-            "title": "Optimized Meeting Slot 1",
-            "date": "Tomorrow",
-            "time": "10:00 AM - 10:30 AM",
-            "duration": 30,
-            "reasoning": "ScaleDown compressed your context by " + ((1 - compressedSize / rawSize) * 100).toFixed(0) + "%. This slot avoids all conflicts."
-        },
-        {
-            "title": "Alternative Slot 2",
-            "date": "Wednesday",
-            "time": "3:00 PM - 3:30 PM",
-            "duration": 30,
-            "reasoning": "Open window identified from compressed calendar data."
-        },
-        {
-            "title": "Backup Slot 3",
-            "date": "Thursday",
-            "time": "11:30 AM - 12:00 PM",
-            "duration": 30,
-            "reasoning": "Fallback option before the All Hands meeting."
+    // --- Stage 2: Gemini Schedule Generation ---
+    let scheduleText = "";
+    let generationLatency = 0;
+
+    if (geminiKey && geminiKey.trim() !== "") {
+        try {
+            console.log("🤖 Calling Gemini API directly from browser...");
+            const t2 = performance.now();
+            scheduleText = await callGeminiDirect(compressedText, preferencesText, geminiKey, selectedModel);
+            const t3 = performance.now();
+            generationLatency = t3 - t2;
+            console.log(`✅ Gemini responded in ${generationLatency.toFixed(0)}ms`);
+        } catch (geminiErr) {
+            console.warn("⚠️ Gemini direct call failed, using demo schedule:", geminiErr);
+            scheduleText = getFallbackSchedule(compressedSize, rawSize);
         }
-    ];
+    } else {
+        console.log("ℹ️ No Gemini key provided. Using demo schedule cards.");
+        scheduleText = getFallbackSchedule(compressedSize, rawSize);
+    }
+
+    const totalLatency = compressionLatency + generationLatency;
 
     return {
         "status": "success",
-        "schedule": JSON.stringify(schedule),
+        "schedule": scheduleText,
         "compressed_text": compressedText,
         "metrics": {
             "raw_input_size": rawSize,
             "compressed_input_size": compressedSize,
             "compression_ratio": `${(100 * (1 - compressedSize / (rawSize || 1))).toFixed(1)}%`,
             "compression_latency_ms": compressionLatency.toFixed(0),
-            "generation_latency_ms": 0,
-            "total_pipeline_ms": compressionLatency.toFixed(0),
-            "speedup_factor": "N/A (Direct API)"
+            "generation_latency_ms": generationLatency.toFixed(0),
+            "total_pipeline_ms": totalLatency.toFixed(0),
+            "speedup_factor": generationLatency > 0 ? `Real AI` : "N/A (No Gemini Key)"
         }
     };
+}
+
+/**
+ * Calls Google Gemini REST API directly from the browser.
+ * Uses the same prompt structure as backend/generative_svc.py.
+ */
+async function callGeminiDirect(compressedText, preferencesText, geminiKey, modelName) {
+    // Gemini REST API endpoint
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`;
+
+    const prompt = `You are an expert meeting scheduler.
+Based on the following compressed calendar context and user preferences, propose 3 optimal meeting times.
+
+COMPRESSED CALENDAR CONTEXT:
+${compressedText}
+
+USER PREFERENCES:
+${preferencesText}
+
+OUTPUT FORMAT (JSON ONLY):
+Return a valid JSON array with exactly 3 meeting options. Each option must have:
+- "title": Brief descriptive title for the meeting
+- "date": Specific day based on the calendar data
+- "time": Time range (e.g., "10:00 AM - 11:00 AM")
+- "duration": Duration in minutes
+- "reasoning": Why this slot is optimal based on the calendar data
+
+Return ONLY the JSON array, no markdown formatting, no code fences, no explanations.`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            contents: [{
+                parts: [{
+                    text: prompt
+                }]
+            }],
+            generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 1024
+            }
+        })
+    });
+
+    if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        const errMsg = errData?.error?.message || response.statusText;
+        throw new Error(`Gemini API Error (${response.status}): ${errMsg}`);
+    }
+
+    const result = await response.json();
+
+    // Extract text from Gemini response
+    const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+        throw new Error("Gemini returned empty response");
+    }
+
+    // Clean markdown fences if present
+    let cleanText = text.trim();
+    if (cleanText.startsWith('```json')) {
+        cleanText = cleanText.replace(/```json\n?/g, '').replace(/```/g, '');
+    } else if (cleanText.startsWith('```')) {
+        cleanText = cleanText.replace(/```\n?/g, '');
+    }
+
+    return cleanText.trim();
+}
+
+/**
+ * Returns hardcoded fallback schedule (only used when Gemini key is not provided).
+ */
+function getFallbackSchedule(compressedSize, rawSize) {
+    const schedule = [
+        {
+            "title": "Suggested Slot 1 (Demo)",
+            "date": "Tomorrow",
+            "time": "10:00 AM - 10:30 AM",
+            "duration": 30,
+            "reasoning": "Demo card — enter a Gemini API key for real AI-generated schedule. ScaleDown compressed by " + ((1 - compressedSize / rawSize) * 100).toFixed(0) + "%."
+        },
+        {
+            "title": "Suggested Slot 2 (Demo)",
+            "date": "Wednesday",
+            "time": "3:00 PM - 3:30 PM",
+            "duration": 30,
+            "reasoning": "Demo card — this is a placeholder. Real Gemini API will analyze your compressed calendar."
+        },
+        {
+            "title": "Suggested Slot 3 (Demo)",
+            "date": "Thursday",
+            "time": "11:30 AM - 12:00 PM",
+            "duration": 30,
+            "reasoning": "Demo card — add your Gemini key above to get AI-powered scheduling."
+        }
+    ];
+    return JSON.stringify(schedule);
 }
 
 function renderResults(data) {
