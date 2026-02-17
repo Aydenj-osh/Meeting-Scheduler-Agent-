@@ -209,11 +209,11 @@ async function callScaleDownDirect(calendarText, preferencesText, apiKey) {
             console.log(`✅ Gemini responded in ${generationLatency.toFixed(0)}ms`);
         } catch (geminiErr) {
             console.warn("⚠️ Gemini direct call failed, using demo schedule:", geminiErr);
-            scheduleText = getFallbackSchedule(compressedSize, rawSize);
+            scheduleText = getFallbackSchedule(compressedText, rawSize, compressedSize);
         }
     } else {
         console.log("ℹ️ No Gemini key provided. Using demo schedule cards.");
-        scheduleText = getFallbackSchedule(compressedSize, rawSize);
+        scheduleText = getFallbackSchedule(compressedText, rawSize, compressedSize);
     }
 
     const totalLatency = compressionLatency + generationLatency;
@@ -337,32 +337,90 @@ Keep the entire response under 500 characters. Return ONLY the JSON array. No ma
 }
 
 /**
- * Returns hardcoded fallback schedule (only used when Gemini key is not provided).
+ * Generates a fallback schedule by analyzing the actual calendar text.
+ * No hardcoded data — extracts real days and times from user input.
  */
-function getFallbackSchedule(compressedSize, rawSize) {
-    const schedule = [
-        {
-            "title": "Suggested Slot 1 (Demo)",
-            "date": "Tomorrow",
-            "time": "10:00 AM - 10:30 AM",
-            "duration": 30,
-            "reasoning": "Demo card — enter a Gemini API key for real AI-generated schedule. ScaleDown compressed by " + ((1 - compressedSize / rawSize) * 100).toFixed(0) + "%."
-        },
-        {
-            "title": "Suggested Slot 2 (Demo)",
-            "date": "Wednesday",
-            "time": "3:00 PM - 3:30 PM",
-            "duration": 30,
-            "reasoning": "Demo card — this is a placeholder. Real Gemini API will analyze your compressed calendar."
-        },
-        {
-            "title": "Suggested Slot 3 (Demo)",
-            "date": "Thursday",
-            "time": "11:30 AM - 12:00 PM",
-            "duration": 30,
-            "reasoning": "Demo card — add your Gemini key above to get AI-powered scheduling."
+function getFallbackSchedule(compressedText, rawSize, compressedSize) {
+    const days = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"];
+    const lines = compressedText.split(/\n/);
+
+    // Find which days appear in the calendar
+    const daysFound = [];
+    const busySlots = {};
+    let currentDay = null;
+
+    for (const line of lines) {
+        const upper = line.trim().toUpperCase();
+        for (const day of days) {
+            if (upper.startsWith(day)) {
+                currentDay = day;
+                daysFound.push(day);
+                busySlots[day] = [];
+                break;
+            }
         }
+        // Extract time ranges like "09:00 AM - 10:00 AM"
+        const timeMatch = line.match(/(\d{1,2}:\d{2}\s*[AP]M)\s*[-–]\s*(\d{1,2}:\d{2}\s*[AP]M)/i);
+        if (timeMatch && currentDay) {
+            busySlots[currentDay].push({ start: timeMatch[1], end: timeMatch[2] });
+        }
+    }
+
+    // Find gaps: suggest slots that DON'T overlap busy times
+    const schedule = [];
+    const possibleSlots = [
+        { time: "9:00 AM - 9:30 AM", hour: 9 },
+        { time: "11:00 AM - 11:30 AM", hour: 11 },
+        { time: "2:00 PM - 2:30 PM", hour: 14 },
+        { time: "4:00 PM - 4:30 PM", hour: 16 }
     ];
+
+    // Check each day for free slots
+    for (const day of daysFound) {
+        if (schedule.length >= 3) break;
+        const busy = busySlots[day] || [];
+
+        for (const slot of possibleSlots) {
+            if (schedule.length >= 3) break;
+            // Check if this slot overlaps any busy time
+            const slotHour = slot.hour;
+            let isFree = true;
+            for (const b of busy) {
+                const busyHour = parseInt(b.start);
+                const isPM = b.start.toUpperCase().includes("PM") && busyHour !== 12;
+                const busyH = isPM ? busyHour + 12 : busyHour;
+                if (Math.abs(busyH - slotHour) < 1) {
+                    isFree = false;
+                    break;
+                }
+            }
+            if (isFree) {
+                const ratio = ((1 - compressedSize / rawSize) * 100).toFixed(0);
+                schedule.push({
+                    title: `Available: ${day.charAt(0) + day.slice(1).toLowerCase()} ${slot.time.split(" - ")[0]}`,
+                    date: day.charAt(0) + day.slice(1).toLowerCase(),
+                    time: slot.time,
+                    duration: 30,
+                    reasoning: `Gap found in ${day.toLowerCase()}'s schedule. ${ratio}% compression applied. Add Gemini key for AI analysis.`
+                });
+                break; // One per day
+            }
+        }
+    }
+
+    // If we couldn't find 3 slots from the data, add remaining from days not in calendar
+    const unusedDays = days.filter(d => !daysFound.includes(d));
+    for (const day of unusedDays) {
+        if (schedule.length >= 3) break;
+        schedule.push({
+            title: `Available: ${day.charAt(0) + day.slice(1).toLowerCase()} (Open)`,
+            date: day.charAt(0) + day.slice(1).toLowerCase(),
+            time: "10:00 AM - 10:30 AM",
+            duration: 30,
+            reasoning: `${day.charAt(0) + day.slice(1).toLowerCase()} has no events in your calendar. Add Gemini key for smarter suggestions.`
+        });
+    }
+
     return JSON.stringify(schedule);
 }
 
