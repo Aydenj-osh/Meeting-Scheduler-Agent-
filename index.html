@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Scheduler Agent</title>
+    <link rel="stylesheet" href="style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+
+    <header class="header">
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            MeetingAI
+        </div>
+        <button id="theme-toggle" class="btn-icon" aria-label="Toggle Dark Mode">
+            <!-- Moon (Hidden by default, shown in light mode) -->
+            <svg id="theme-icon-moon" class="hidden" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+            <!-- Sun (Shown by default, hidden in light mode) -->
+            <svg id="theme-icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+        </button>
+    </header>
+
+    <div class="hero">
+        <h1>Meeting Scheduler <span>Agent</span></h1>
+        <p>Paste your calendar, describe your preferences, and let AI craft the perfect schedule.</p>
+    </div>
+
+    <div class="container">
+
+        <!-- 1. API Key Card -->
+        <div class="card api-card">
+            <div class="input-header">
+                <div class="input-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4">
+                        </path>
+                    </svg>
+                </div>
+                API Access Keys
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label
+                        style="display: block; color: var(--text-secondary); margin-bottom: 8px; font-size: 0.9rem;">ScaleDown
+                        AI Key</label>
+                    <input type="password" id="api-key-input" placeholder="sk-scaledown-xxxxxxxx" autocomplete="off">
+                </div>
+                <div>
+                    <label
+                        style="display: block; color: var(--text-secondary); margin-bottom: 8px; font-size: 0.9rem;">Gemini
+                        API Key <span style="font-size: 0.8em; color: var(--accent-purple);">(Optional)</span></label>
+                    <input type="password" id="gemini-key-input" placeholder="AIzaSy..." autocomplete="off">
+
+                    <div style="margin-top: 12px;">
+                        <label
+                            style="display: block; color: var(--text-secondary); margin-bottom: 6px; font-size: 0.85rem;">Select
+                            Model (Stage 2)</label>
+                        <select id="gemini-model-select"
+                            style="width: 100%; padding: 10px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-family: 'Inter', sans-serif; cursor: pointer;">
+                            <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash (Newest - Recommended)</option>
+                            <option value="custom">Custom Model ID...</option>
+                        </select>
+                        <input type="text" id="gemini-model-custom" placeholder="e.g. models/gemini-1.5-flash-001"
+                            class="hidden"
+                            style="margin-top: 8px; width: 100%; padding: 10px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-family: 'Inter', sans-serif;">
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">For enhanced
+                        intelligent results (Stage 2)</div>
+                </div>
+            </div>
+
+            <div id="api-warning" style="color: #ef4444; font-size: 0.9rem; margin-top: 10px; display: none;">
+                ⚠️ Please enter a valid ScaleDown API key to proceed.
+            </div>
+        </div>
+
+        <!-- 2. Inputs Grid -->
+        <div class="grid-2">
+            <!-- Calendar Input -->
+            <div class="card">
+                <div class="input-header">
+                    <div class="input-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </div>
+                    Calendar Data
+                </div>
+                <input type="hidden" id="input-data">
+                <textarea id="calendar-input"
+                    placeholder="Paste your raw calendar export here (JSON, text, or iCal)..."></textarea>
+                <div class="char-count" id="calendar-count">0 chars</div>
+            </div>
+
+            <!-- Preferences Input -->
+            <div class="card">
+                <div class="input-header">
+                    <div class="input-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path
+                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                            </path>
+                        </svg>
+                    </div>
+                    Scheduling Preferences
+                </div>
+                <textarea id="preferences-input" placeholder="- No meetings before 10am..."></textarea>
+                <div class="char-count" id="prefs-count">0 chars</div>
+            </div>
+        </div>
+
+        <!-- 3. Optimization Button -->
+        <button id="optimize-btn" class="btn-primary" onclick="scheduleMeeting()">
+            ✨ Compress Context with ScaleDown
+        </button>
+
+        <!-- Results Section -->
+        <div id="loading" class="hidden" style="text-align: center; margin-top: 40px;">
+            <div class="loading-spinner"></div>
+            <p style="color: var(--text-secondary); margin-top: 10px;">Compressing Context & Thinking...</p>
+        </div>
+
+        <div id="results" class="hidden" style="margin-top: 40px;">
+            <div class="card">
+                <div class="input-header">
+                    <div class="input-icon" style="color: #10b981; background: rgba(16, 185, 129, 0.1);">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                            <polyline points="17 6 23 6 23 12"></polyline>
+                        </svg>
+                    </div>
+                    Compression Efficiency
+                </div>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value" id="metric-original">0 chars</div>
+                        <div class="metric-label">Original Size</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="metric-compressed" style="color: #10b981;">0 chars</div>
+                        <div class="metric-label">Compressed Size</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value speedup-badge" id="metric-ratio">0%</div>
+                        <div class="metric-label">Reduction Ratio</div>
+                    </div>
+                </div>
+
+                <h3>Compressed Context Output</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 10px;">This is the optimized
+                    text that would be sent to an LLM. Notice how much noise has been removed.</p>
+                <div id="schedule-output" class="schedule-box"
+                    style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; max-height: 400px; overflow-y: auto;">
+                </div>
+
+                <div id="revised-schedule-container" class="hidden"
+                    style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <h3>📅 Optimal Meeting Times</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 10px;">
+                        AI-generated schedule options based on compressed context
+                    </p>
+                    <div id="calendar-grid" class="calendar-grid"></div>
+                </div>
+
+                <!-- Hidden raw JSON for debug -->
+                <pre id="output-json" class="hidden"></pre>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const themeToggle = document.getElementById('theme-toggle');
+        const sunIcon = document.getElementById('theme-icon-sun');
+        const moonIcon = document.getElementById('theme-icon-moon');
+        const html = document.documentElement;
+
+        // Check local storage
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            html.setAttribute('data-theme', savedTheme);
+            updateIcons(savedTheme);
+        }
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateIcons(newTheme);
+        });
+
+        function updateIcons(theme) {
+            if (theme === 'light') {
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+            } else {
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+            }
+        }
+
+        // Custom Model Toggle
+        const modelSelect = document.getElementById('gemini-model-select');
+        const customModelInput = document.getElementById('gemini-model-custom');
+
+        if (modelSelect && customModelInput) {
+            modelSelect.addEventListener('change', () => {
+                if (modelSelect.value === 'custom') {
+                    customModelInput.classList.remove('hidden');
+                    customModelInput.focus();
+                } else {
+                    customModelInput.classList.add('hidden');
+                }
+            });
+        }
+    </script>
+    <script src="app.js"></script>
+</body>
+
+</html>

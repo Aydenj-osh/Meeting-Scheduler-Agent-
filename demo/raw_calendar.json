@@ -1,0 +1,85 @@
+{
+    "requestId": "req_123456789",
+    "constraints": {
+        "duration": 30,
+        "searchStart": "2024-10-28T09:00:00Z",
+        "searchEnd": "2024-11-01T17:00:00Z"
+    },
+    "attendees": [
+        {
+            "id": "alice@example.com",
+            "name": "Alice Johnson",
+            "role": "VP Engineering",
+            "timezone": "America/New_York",
+            "bio": "Extensive bio that takes up tokens...",
+            "events": [
+                {
+                    "subject": "Weekly Sync",
+                    "start": "2024-10-28T09:00:00-04:00",
+                    "end": "2024-10-28T10:00:00-04:00",
+                    "showAs": "busy",
+                    "body": "<html>...lots of html...</html>"
+                },
+                {
+                    "subject": "Deep Work",
+                    "start": "2024-10-28T13:00:00-04:00",
+                    "end": "2024-10-28T15:00:00-04:00",
+                    "showAs": "busy"
+                },
+                {
+                    "subject": "Client Call",
+                    "start": "2024-10-29T10:00:00-04:00",
+                    "end": "2024-10-29T11:00:00-04:00",
+                    "showAs": "busy"
+                }
+            ]
+        },
+        {
+            "id": "bob@example.com",
+            "name": "Bob Smith",
+            "role": "Product Manager",
+            "timezone": "Europe/London",
+            "bio": "Likes scheduling meetings...",
+            "events": [
+                {
+                    "subject": "Lunch",
+                    "start": "2024-10-28T12:00:00+00:00",
+                    "end": "2024-10-28T13:00:00+00:00",
+                    "showAs": "busy"
+                },
+                {
+                    "subject": "Team Sync",
+                    "start": "2024-10-28T14:00:00+00:00",
+                    "end": "2024-10-28T15:00:00+00:00",
+                    "showAs": "busy"
+                },
+                {
+                    "subject": "Review",
+                    "start": "2024-10-29T09:00:00+00:00",
+                    "end": "2024-10-29T11:00:00+00:00",
+                    "showAs": "busy"
+                }
+            ]
+        },
+        {
+            "id": "charlie@example.com",
+            "name": "Charlie Davis",
+            "role": "Senior Developer",
+            "timezone": "America/Los_Angeles",
+            "events": [
+                {
+                    "subject": "Standup",
+                    "start": "2024-10-28T10:00:00-07:00",
+                    "end": "2024-10-28T10:30:00-07:00",
+                    "showAs": "busy"
+                },
+                {
+                    "subject": "Coding Block",
+                    "start": "2024-10-28T13:00:00-07:00",
+                    "end": "2024-10-28T16:00:00-07:00",
+                    "showAs": "busy"
+                }
+            ]
+        }
+    ]
+}
