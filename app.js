@@ -274,7 +274,9 @@ Keep the entire response under 500 characters. Return ONLY the JSON array. No ma
             }],
             generationConfig: {
                 temperature: 0.7,
-                maxOutputTokens: 2048
+                maxOutputTokens: 8192,
+                // Disable "thinking" for gemini-2.5 models so all tokens go to the answer
+                thinkingConfig: { thinkingBudget: 0 }
             }
         })
     });
