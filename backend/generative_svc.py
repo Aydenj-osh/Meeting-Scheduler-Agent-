@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning, module="google")
+
 import time
 import logging
 import google.generativeai as genai
