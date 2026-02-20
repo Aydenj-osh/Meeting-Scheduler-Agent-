@@ -240,6 +240,33 @@ body::after {
     -webkit-text-fill-color: transparent;
 }
 
+.text-gen {
+    font-weight: 900;
+    font-size: 1.1em;
+    /* Slightly larger */
+    background: linear-gradient(135deg, #00C9FF 0%, #92FE9D 100%);
+    /* Fresh cyan-green gradient for "Gen" */
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 10px rgba(0, 201, 255, 0.5));
+    display: inline-block;
+    animation: pulse-glow 3s infinite ease-in-out;
+}
+
+@keyframes pulse-glow {
+
+    0%,
+    100% {
+        filter: drop-shadow(0 0 10px rgba(0, 201, 255, 0.5));
+        transform: scale(1);
+    }
+
+    50% {
+        filter: drop-shadow(0 0 20px rgba(146, 254, 157, 0.8));
+        transform: scale(1.05);
+    }
+}
+
 .hero p {
     color: var(--text-secondary);
     font-size: 1.35rem;
