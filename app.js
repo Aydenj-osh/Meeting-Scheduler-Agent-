@@ -48,10 +48,10 @@ window.addEventListener('DOMContentLoaded', () => {
         if (apiKeyInput.value.trim().length > 0) {
             warning.style.display = 'none';
             btn.classList.remove('btn-disabled');
-            btn.innerText = "✨ Compress Context with ScaleDown";
+            btn.innerHTML = "✨ Generate Master Schedule";
         } else {
             btn.classList.add('btn-disabled');
-            btn.innerText = "🔒 Enter API Key to Start";
+            btn.innerHTML = "🔒 <strong>Unlock AI Agent</strong>"; // Bold for emphasis
         }
     });
 
