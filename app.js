@@ -88,6 +88,18 @@ async function scheduleMeeting() {
         return;
     }
 
+    if (!geminiKey || geminiKey.trim() === "") {
+        document.getElementById('gemini-key-input').focus();
+        alert("Please enter a valid Gemini API Key to proceed! (Required for Schedule Generation)");
+        return;
+    }
+
+    if (!geminiKey || geminiKey.trim() === "") {
+        document.getElementById('gemini-key-input').focus();
+        alert("Please enter a valid Gemini API Key to proceed! (Required for Schedule Generation)");
+        return;
+    }
+
     // Elements
     const loading = document.getElementById('loading');
     const results = document.getElementById('results');
@@ -132,15 +144,10 @@ async function scheduleMeeting() {
 
             renderResults(directData);
         } catch (apiError) {
-            console.warn("Direct ScaleDown API also failed. Falling back to offline demo.", apiError);
-
-            // --- OFFLINE DEMO FALLBACK ---
-            const demoData = simulateBackend(calendarInput, preferencesInput);
-
+            console.error("Direct ScaleDown API failed.", apiError);
             const scheduleOutput = document.getElementById('schedule-output');
-            scheduleOutput.innerText = "⚠️ All APIs Unreachable. Running in Offline Demo Mode.\n\n" + demoData.compressed_text;
-
-            renderResults(demoData);
+            scheduleOutput.innerText = `❌ Error: ${apiError.message}`;
+            alert(`Error: ${apiError.message}`);
         }
     } finally {
         loading.classList.add('hidden');
@@ -199,22 +206,20 @@ async function callScaleDownDirect(calendarText, preferencesText, apiKey) {
     let scheduleText = "";
     let generationLatency = 0;
 
-    if (geminiKey && geminiKey.trim() !== "") {
-        try {
-            console.log("🤖 Calling Gemini API directly from browser...");
-            const t2 = performance.now();
-            scheduleText = await callGeminiDirect(compressedText, preferencesText, geminiKey, selectedModel);
-            const t3 = performance.now();
-            generationLatency = t3 - t2;
-            console.log(`✅ Gemini responded in ${generationLatency.toFixed(0)}ms`);
-        } catch (geminiErr) {
-            console.warn("⚠️ Gemini direct call failed, using demo schedule:", geminiErr);
-            scheduleText = getFallbackSchedule(compressedText, rawSize, compressedSize);
-        }
-    } else {
-        console.log("ℹ️ No Gemini key provided. Using demo schedule cards.");
-        scheduleText = getFallbackSchedule(compressedText, rawSize, compressedSize);
+    // Gemini Key is now mandatory, so we expect it to be present.
+    // If it was missing, we would have caught it in validation before calling this function.
+
+    console.log("🤖 Calling Gemini API directly from browser...");
+    const t2 = performance.now();
+    try {
+        scheduleText = await callGeminiDirect(compressedText, preferencesText, geminiKey, selectedModel);
+    } catch (geminiErr) {
+        console.error("Gemini API Failed", geminiErr);
+        throw geminiErr; // Propagate error to caller
     }
+    const t3 = performance.now();
+    generationLatency = t3 - t2;
+    console.log(`✅ Gemini responded in ${generationLatency.toFixed(0)}ms`);
 
     const totalLatency = compressionLatency + generationLatency;
 
@@ -336,99 +341,17 @@ Keep the entire response under 500 characters. Return ONLY the JSON array. No ma
     return cleanText;
 }
 
-/**
- * Generates a fallback schedule by analyzing the actual calendar text.
- * No hardcoded data — extracts real days and times from user input.
- */
-function getFallbackSchedule(compressedText, rawSize, compressedSize) {
-    const days = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"];
-    const lines = compressedText.split(/\n/);
 
-    // Find which days appear in the calendar
-    const daysFound = [];
-    const busySlots = {};
-    let currentDay = null;
-
-    for (const line of lines) {
-        const upper = line.trim().toUpperCase();
-        for (const day of days) {
-            if (upper.startsWith(day)) {
-                currentDay = day;
-                daysFound.push(day);
-                busySlots[day] = [];
-                break;
-            }
-        }
-        // Extract time ranges like "09:00 AM - 10:00 AM"
-        const timeMatch = line.match(/(\d{1,2}:\d{2}\s*[AP]M)\s*[-–]\s*(\d{1,2}:\d{2}\s*[AP]M)/i);
-        if (timeMatch && currentDay) {
-            busySlots[currentDay].push({ start: timeMatch[1], end: timeMatch[2] });
-        }
-    }
-
-    // Find gaps: suggest slots that DON'T overlap busy times
-    const schedule = [];
-    const possibleSlots = [
-        { time: "9:00 AM - 9:30 AM", hour: 9 },
-        { time: "11:00 AM - 11:30 AM", hour: 11 },
-        { time: "2:00 PM - 2:30 PM", hour: 14 },
-        { time: "4:00 PM - 4:30 PM", hour: 16 }
-    ];
-
-    // Check each day for free slots
-    for (const day of daysFound) {
-        if (schedule.length >= 3) break;
-        const busy = busySlots[day] || [];
-
-        for (const slot of possibleSlots) {
-            if (schedule.length >= 3) break;
-            // Check if this slot overlaps any busy time
-            const slotHour = slot.hour;
-            let isFree = true;
-            for (const b of busy) {
-                const busyHour = parseInt(b.start);
-                const isPM = b.start.toUpperCase().includes("PM") && busyHour !== 12;
-                const busyH = isPM ? busyHour + 12 : busyHour;
-                if (Math.abs(busyH - slotHour) < 1) {
-                    isFree = false;
-                    break;
-                }
-            }
-            if (isFree) {
-                const ratio = ((1 - compressedSize / rawSize) * 100).toFixed(0);
-                schedule.push({
-                    title: `Available: ${day.charAt(0) + day.slice(1).toLowerCase()} ${slot.time.split(" - ")[0]}`,
-                    date: day.charAt(0) + day.slice(1).toLowerCase(),
-                    time: slot.time,
-                    duration: 30,
-                    reasoning: `Gap found in ${day.toLowerCase()}'s schedule. ${ratio}% compression applied. Add Gemini key for AI analysis.`
-                });
-                break; // One per day
-            }
-        }
-    }
-
-    // If we couldn't find 3 slots from the data, add remaining from days not in calendar
-    const unusedDays = days.filter(d => !daysFound.includes(d));
-    for (const day of unusedDays) {
-        if (schedule.length >= 3) break;
-        schedule.push({
-            title: `Available: ${day.charAt(0) + day.slice(1).toLowerCase()} (Open)`,
-            date: day.charAt(0) + day.slice(1).toLowerCase(),
-            time: "10:00 AM - 10:30 AM",
-            duration: 30,
-            reasoning: `${day.charAt(0) + day.slice(1).toLowerCase()} has no events in your calendar. Add Gemini key for smarter suggestions.`
-        });
-    }
-
-    return JSON.stringify(schedule);
-}
 
 function renderResults(data) {
     const results = document.getElementById('results');
     const outputJson = document.getElementById('output-json');
     const scheduleOutput = document.getElementById('schedule-output');
     const revisedContainer = document.getElementById('revised-schedule-container');
+
+    // Reset container
+    revisedContainer.classList.add('hidden');
+    document.getElementById('calendar-grid').innerHTML = '';
 
     // Render Metrics (Compression Focus)
     document.getElementById('metric-original').innerText = `${data.metrics.raw_input_size} chars`;
@@ -507,62 +430,4 @@ function renderResults(data) {
     results.classList.remove('hidden');
 }
 
-/**
- * Offline fallback: Simulates compression entirely in the browser.
- * Used when BOTH the backend AND the direct ScaleDown API are unreachable.
- */
-function simulateBackend(calendarText, preferencesText) {
-    const rawSize = calendarText.length + preferencesText.length;
 
-    const lines = calendarText.split('\n');
-    const compressedLines = lines
-        .filter(line => line.match(/\d/) || line.toLowerCase().includes('time') || line.toLowerCase().includes('schedule'))
-        .map(line => line.trim())
-        .filter(line => line.length > 0)
-        .slice(0, 10);
-
-    compressedLines.unshift("CONTEXT: SCHEDULE OPTIMIZATION");
-    compressedLines.push(`PREFERENCES: ${preferencesText.substring(0, 50)}...`);
-
-    const compressedText = compressedLines.join('\n');
-    const compressedSize = compressedText.length;
-
-    const schedule = [
-        {
-            "title": "Strategy Sync (Offline Demo)",
-            "date": "Tomorrow",
-            "time": "10:00 AM - 10:30 AM",
-            "duration": 30,
-            "reasoning": "Determined via browser-side logic (offline simulation)."
-        },
-        {
-            "title": "Deep Work Block (Offline Demo)",
-            "date": "Wednesday",
-            "time": "2:00 PM - 4:00 PM",
-            "duration": 120,
-            "reasoning": "Fits perfectly after your morning meetings."
-        },
-        {
-            "title": "Team Huddle (Offline Demo)",
-            "date": "Friday",
-            "time": "11:00 AM - 11:15 AM",
-            "duration": 15,
-            "reasoning": "Short slot available before lunch."
-        }
-    ];
-
-    return {
-        "status": "success",
-        "schedule": JSON.stringify(schedule),
-        "compressed_text": compressedText,
-        "metrics": {
-            "raw_input_size": rawSize,
-            "compressed_input_size": compressedSize,
-            "compression_ratio": `${(100 * (1 - compressedSize / (rawSize || 1))).toFixed(1)}%`,
-            "compression_latency_ms": 0,
-            "generation_latency_ms": 0,
-            "total_pipeline_ms": 0,
-            "speedup_factor": "N/A (Offline)"
-        }
-    };
-}
