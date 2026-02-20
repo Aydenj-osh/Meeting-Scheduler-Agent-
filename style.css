@@ -348,6 +348,11 @@ select {
     box-sizing: border-box;
 }
 
+select option {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+}
+
 input:focus,
 textarea:focus,
 select:focus {
