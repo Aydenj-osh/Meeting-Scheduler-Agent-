@@ -242,16 +242,20 @@ body::after {
 
 .text-gen {
     font-weight: 900;
-    /* font-size: 1.1em; Remove size increase to keep baseline aligned */
+    font-size: inherit;
+    /* Reset size */
     background: linear-gradient(135deg, #00C9FF 0%, #92FE9D 100%);
-    /* Fresh cyan-green gradient for "Gen" */
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 10px rgba(0, 201, 255, 0.5));
-    display: inline-block;
+    filter: drop-shadow(0 0 8px rgba(0, 201, 255, 0.4));
+    display: inline;
+    /* Keep it inline to flow perfectly with text */
+    margin: 0;
+    /* Remove spacing hacks */
+    padding: 0;
+    vertical-align: baseline;
+    /* Ensure baseline alignment */
     animation: pulse-glow 3s infinite ease-in-out;
-    margin: 0 -0.05em;
-    /* Tighten spacing to make it look like one word */
 }
 
 @keyframes pulse-glow {
