@@ -242,8 +242,7 @@ body::after {
 
 .text-gen {
     font-weight: 900;
-    font-size: 1.1em;
-    /* Slightly larger */
+    /* font-size: 1.1em; Remove size increase to keep baseline aligned */
     background: linear-gradient(135deg, #00C9FF 0%, #92FE9D 100%);
     /* Fresh cyan-green gradient for "Gen" */
     -webkit-background-clip: text;
@@ -251,6 +250,8 @@ body::after {
     filter: drop-shadow(0 0 10px rgba(0, 201, 255, 0.5));
     display: inline-block;
     animation: pulse-glow 3s infinite ease-in-out;
+    margin: 0 -0.05em;
+    /* Tighten spacing to make it look like one word */
 }
 
 @keyframes pulse-glow {
