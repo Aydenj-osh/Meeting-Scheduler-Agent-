@@ -20,14 +20,13 @@ class GeminiService:
 
     def generate_schedule(self, prompt: str, api_key: str = None, model_name: str = "gemini-2.5-flash") -> str:
         """
-        Generates a schedule based on the prompt.
-        If api_key is provided, uses Gemini.
-        Otherwise, falls back to simulation.
+        Generates a schedule based on the prompt using Gemini.
+        Raises an error if no API key is provided.
         """
-        if api_key and api_key.strip():
-            return self._generate_with_gemini(prompt, api_key, model_name)
-        else:
-            return self._simulate_generation(prompt)
+        if not api_key or not api_key.strip():
+            raise ValueError("Gemini API Key is missing. Please provide a valid key.")
+            
+        return self._generate_with_gemini(prompt, api_key, model_name)
 
     def _generate_with_gemini(self, prompt: str, api_key: str, model_name: str) -> str:
         try:
@@ -79,33 +78,4 @@ class GeminiService:
             except Exception as listing_error:
                 logger.error(f"Could not list models: {listing_error}")
 
-            return f"Error with model '{model_name}': {str(e)}. Check server logs for available models."
-
-    def _simulate_generation(self, prompt: str) -> str:
-        """
-        Simulates latency based on prompt length.
-        """
-        input_length = len(prompt)
-        # Base latency + variable latency based on token count
-        simulated_latency_ms = 500 + (input_length * self.speed)
-        
-        logger.info(f"GenAI (Simulation): Processing prompt of length {input_length}. Estimated latency: {simulated_latency_ms:.2f}ms")
-        
-        # Simulate the "Thinking" time
-        time.sleep(simulated_latency_ms / 1000.0)
-        
-        return f"""
-*** SIMULATED SCHEDULE (No Gemini Key Provided) ***
-Based on the compressed context provided, here are the optimal meeting slots:
-
-1. **Option A**: Tuesday, Oct 29 at 10:00 AM EST
-   - *Reasoning*: All attendees are free. Alice's "Deep Work" block is avoided.
-
-2. **Option B**: Wednesday, Oct 30 at 2:00 PM EST
-   - *Reasoning*: Fits the 30-minute duration constraint perfectly.
-
-3. **Option C**: Thursday, Oct 31 at 11:30 AM EST
-   - *Reasoning*: Complies with all timezone overlaps.
-
-[AI Context]: Generated from {input_length} chars of context in {simulated_latency_ms:.0f}ms.
-"""
+            raise Exception(f"Error with model '{model_name}': {str(e)}")
